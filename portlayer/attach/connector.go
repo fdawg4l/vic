@@ -153,7 +153,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		serial.PurgeIncoming(conn)
 
 		// TODO needs timeout handling.  This could take 30s.
-		ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 		if err = serial.HandshakeClient(ctx, conn); err == nil {
 			log.Debugf("New connection")
 			cancel()
@@ -247,6 +247,7 @@ func (c *Connector) serve() {
 			continue
 		}
 
+		log.Info("Received incoming connection")
 		go c.processIncoming(conn)
 	}
 }

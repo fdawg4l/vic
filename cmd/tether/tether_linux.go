@@ -109,15 +109,16 @@ func (t *osopsLinux) setup() error {
 	// seems necessary given rand.Reader access
 	var err error
 
-	// redirect logging to the serial log
-	log.Infof("opening %s/ttyS1 for debug log", pathPrefix)
-	out, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
-	if err != nil {
-		detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
-		log.Error(detail)
-		return errors.New(detail)
-	}
-	log.SetOutput(io.MultiWriter(out, os.Stdout))
+	//
+	// // redirect logging to the serial log
+	// log.Infof("opening %s/ttyS1 for debug log", pathPrefix)
+	// out, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	// if err != nil {
+	//	detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
+	//	log.Error(detail)
+	//	return errors.New(detail)
+	// }
+	// log.SetOutput(io.MultiWriter(out, os.Stdout))
 
 	// TODO: enabled for initial dev debugging only
 	go func() {
@@ -168,7 +169,7 @@ func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(10 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
@@ -205,16 +206,17 @@ func (t *osopsLinux) processEnvOS(env []string) []string {
 // sessionLogWriter returns a writer that will persist the session output
 func (t *osopsLinux) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	// open SttyS2 for session logging
-	log.Info("opening ttyS2 for session logging")
-	f, err := os.OpenFile(pathPrefix+"/ttyS2", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 777)
-	if err != nil {
-		detail := fmt.Sprintf("failed to open serial port for session log: %s", err)
-		log.Error(detail)
-		return nil, errors.New(detail)
-	}
+	// log.Info("opening ttyS2 for session logging")
+	// f, err := os.OpenFile(pathPrefix+"/ttyS2", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 777)
+	// if err != nil {
+	//	detail := fmt.Sprintf("failed to open serial port for session log: %s", err)
+	//	log.Error(detail)
+	//	return nil, errors.New(detail)
+	// }
+	//
 
 	// use multi-writer so it goes to both screen and session log
-	return dio.MultiWriter(f, os.Stdout), nil
+	return dio.MultiWriter(os.Stdout), nil
 }
 
 func (t *osopsLinux) establishPty(live *liveSession) error {

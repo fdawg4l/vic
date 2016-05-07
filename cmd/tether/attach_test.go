@@ -25,6 +25,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -120,7 +121,7 @@ func TestAttach(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -242,7 +243,7 @@ func TestAttachTTY(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -383,7 +384,7 @@ func TestAttachTwo(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -546,7 +547,7 @@ func TestAttachInvalid(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -579,3 +580,40 @@ func TestAttachInvalid(t *testing.T) {
 
 //
 /////////////////////////////////////////////////////////////////////////////////////
+
+func TestAttachTetherToPL(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+
+	// Start the PL attach server
+	testServer := attach.NewAttachServer("", 2377)
+	assert.NoError(t, testServer.Start())
+	defer testServer.Stop()
+
+	cfg := &TestAttachConfig{}
+	_, err := cfg.LoadConfig()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	go func() {
+		err = run(cfg)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	//
+	// // create a con on the mock pipe
+	// _, err = mockNetworkToSerialConnection(testServer.Addr())
+	// if !assert.NoError(t, err) {
+	//	return
+	// }
+
+	_, err = testServer.Get(context.Background(), "attach", 5*time.Second)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	//	testServer.Stop()
+}

@@ -71,6 +71,7 @@ func NewTypedConn(r NamedReadChannel, w NamedWriteChannel, net string) (*RawConn
 			if err != nil {
 				return nil, err
 			}
+			break
 		}
 	}
 

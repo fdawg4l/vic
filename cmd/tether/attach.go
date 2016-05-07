@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/dio"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/testdata"
 	"golang.org/x/net/context"
 )
 
@@ -93,7 +94,7 @@ func (t *attachServerSSH) start() error {
 	}
 
 	// don't assume that the key hasn't changed
-	pkey, err := ssh.ParsePrivateKey(config.Key)
+	pkey, err := ssh.ParsePrivateKey(testdata.PEMBytes["dsa"])
 	if err != nil {
 		detail := fmt.Sprintf("failed to load key for attach: %s", err)
 		log.Error(detail)
@@ -160,7 +161,7 @@ func (t *attachServerSSH) run() error {
 		t.conn = &conn
 
 		// create the SSH server
-		sConn, chans, reqs, err = ssh.NewServerConn(*t.conn, t.config)
+		sConn, chans, reqs, err = ssh.NewServerConn(conn, t.config)
 		if err != nil {
 			detail := fmt.Sprintf("failed to establish ssh handshake: %s", err)
 			log.Error(detail)
