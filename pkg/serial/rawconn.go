@@ -22,8 +22,9 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/term"
 )
 
 const verbose = false
@@ -65,9 +66,9 @@ func NewTypedConn(r NamedReadChannel, w NamedWriteChannel, net string) (*RawConn
 	// 0 is the uninitialized value for Fd
 	fds := []uintptr{r.Fd(), w.Fd()}
 	for _, fd := range fds {
-		if fd != 0 && term.IsTerminal(fd) {
-			log.Debug("setting terminal into raw mode")
-			_, err := term.SetRawTerminal(fd)
+		if fd != 0 && terminal.IsTerminal(int(fd)) {
+			log.Debug("setting terminal %d into raw mode", int(fd))
+			_, err := terminal.MakeRaw(int(fd))
 			if err != nil {
 				return nil, err
 			}
