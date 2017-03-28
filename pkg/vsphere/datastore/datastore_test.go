@@ -161,51 +161,12 @@ func TestDatastoreMkdirAndLs(t *testing.T) {
 	}
 }
 
-func TestDatastoreToURLParsing(t *testing.T) {
-	expectedURL := "ds://datastore1/path/to/thing"
+func TestDatastoreURLtoDatastorePath(t *testing.T) {
+	in := []struct {
+		input  string
+		output *object.DatastorePath
+	}{{"ds://datastore/path", &object.DatastorePath{"datastore", "path"}}}
 
-	input := [][]string{
-		{"[datastore1] /path/to/thing", expectedURL},
-		{"[datastore1] path/to/thing", expectedURL},
-		{"[datastore1] ///path////to/thing", expectedURL},
-		{"[Datastore (1)] /path/to/thing", "ds://Datastore%20(1)/path/to/thing"},
-		{"[datastore1] path", "ds://datastore1/path"},
-		{"[datastore1] pa-th", "ds://datastore1/pa-th"},
-		{"[datastore1] pa_th", "ds://datastore1/pa_th"},
-		{"[data_store1] pa_th", "ds://data_store1/pa_th"},
-	}
-
-	dsoutputs := []string{
-		"[datastore1] /path/to/thing",
-		"[datastore1] path/to/thing",
-		"[datastore1] /path/to/thing",
-		"[Datastore (1)] /path/to/thing",
-		"[datastore1] path",
-		"[datastore1] pa-th",
-		"[datastore1] pa_th",
-		"[data_store1] pa_th",
-	}
-
-	for i, in := range input {
-		u, err := ToURL(in[0])
-
-		if !assert.NoError(t, err) || !assert.NotNil(t, u) {
-			return
-		}
-
-		if !assert.Equal(t, in[1], u.String()) {
-			return
-		}
-
-		out, err := URLtoDatastore(u)
-		if !assert.NoError(t, err) || !assert.True(t, len(out) > 0) {
-			return
-		}
-
-		if !assert.Equal(t, dsoutputs[i], out) {
-			return
-		}
-	}
 }
 
 // From https://siongui.github.io/2015/04/13/go-generate-random-string/

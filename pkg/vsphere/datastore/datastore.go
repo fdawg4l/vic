@@ -325,6 +325,7 @@ func (d *Helper) mkRootDir(ctx context.Context, root *object.DatastorePath) erro
 	return nil
 }
 
+// Return a DatastorePath from a "[datastore]" path string
 func DatastorePathFromString(dsp string) (*object.DatastorePath, error) {
 	var p object.DatastorePath
 	if !p.FromString(dsp) {
@@ -332,6 +333,11 @@ func DatastorePathFromString(dsp string) (*object.DatastorePath, error) {
 	}
 
 	return &p, nil
+}
+
+// DatastorePathFromURLString returns a DatastorePath from a url formatted string.
+func DatastorePathFromURLString(url string) (*object.DatastorePath, error) {
+	return nil, nil
 }
 
 // TestName builds a unique datastore name
