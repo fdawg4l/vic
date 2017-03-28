@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/certificate"
@@ -122,10 +123,10 @@ type Network struct {
 // StorageConfig defines the storage configuration including images and volumes
 type Storage struct {
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
+	ImageStores []object.DatastorePath `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
 	// Keyed by the volume store name (which is used by the docker user to
-	// refer to the datstore + path), valued by the datastores and the path.
+	// refer to the datastore + path), valued by the datastores and the path.
 	VolumeLocations map[string]*url.URL `vic:"0.1" scope:"read-only"`
 	// default size for root image
 	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
@@ -269,9 +270,9 @@ func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *ex
 	}
 }
 
-func (t *VirtualContainerHostConfigSpec) AddImageStore(url *url.URL) {
-	if url != nil {
-		t.ImageStores = append(t.ImageStores, *url)
+func (t *VirtualContainerHostConfigSpec) AddImageStore(dspath *object.DatastorePath) {
+	if dspath != nil {
+		t.ImageStores = append(t.ImageStores, *dspath)
 	}
 }
 

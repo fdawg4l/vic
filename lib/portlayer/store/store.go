@@ -17,11 +17,12 @@ package store
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
+	"path"
 	"regexp"
 	"sync"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -33,7 +34,7 @@ import (
 type StoreManager struct {
 	m            sync.RWMutex
 	dsStores     map[string]kvstore.KeyValueStore
-	datastoreURL url.URL
+	datastoreURL object.DatastorePath
 }
 
 var (
@@ -59,12 +60,12 @@ var (
 
 // Init will initialize the package vars and create the default portLayerKV store
 //
-// Note: The imgStoreURL is provided by the portlayer init function and is currently
+// Note: The dspath is provided by the portlayer init function and is currently
 // based on the image-store specified at appliance creation via vic-machine.  That URL
 // is the starting point for the datastore persistence path and does not mean that the
 // k/v stores are presisted w/the images.
-func Init(ctx context.Context, session *session.Session, imgStoreURL *url.URL) error {
-	defer trace.End(trace.Begin(imgStoreURL.String()))
+func Init(ctx context.Context, session *session.Session, dspath *object.DatastorePath) error {
+	defer trace.End(trace.Begin(dspath.String()))
 
 	initializer.once.Do(func() {
 		var err error
@@ -74,7 +75,7 @@ func Init(ctx context.Context, session *session.Session, imgStoreURL *url.URL) e
 
 		mgr = &StoreManager{
 			dsStores:     make(map[string]kvstore.KeyValueStore),
-			datastoreURL: *imgStoreURL,
+			datastoreURL: *dspath,
 		}
 		//create or restore the api accessible datastore backed k/v store
 		_, err = NewDatastoreKeyValue(ctx, session, APIKV)
@@ -113,7 +114,7 @@ func NewDatastoreKeyValue(ctx context.Context, session *session.Session, name st
 	}
 	// get a ds helper for this ds url
 	dsHelper, err := datastore.NewHelper(trace.NewOperation(ctx, "datastore helper creation"), session,
-		session.Datastore, fmt.Sprintf("%s/%s", mgr.datastoreURL.Path, KVStoreFolder))
+		&object.DatastorePath{mgr.datastoreURL.Datastore, path.Join(mgr.datastoreURL.Path, KVStoreFolder)})
 	if err != nil {
 		return nil, fmt.Errorf("unable to get datastore helper for %s store creation: %s", name, err.Error())
 	}

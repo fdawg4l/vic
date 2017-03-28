@@ -16,7 +16,6 @@ package portlayer
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/attach"
@@ -72,7 +71,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 
 	// vmPath is set to the vmx.  Grab the directory from that.
-	vmFolder, err := datastore.ToURL(path.Dir(vmPath))
+	vmFolder, err := datastore.DatastorePathFromString(vmPath)
 	if err != nil {
 		return err
 	}

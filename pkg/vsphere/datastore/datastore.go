@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -54,23 +53,26 @@ type Helper struct {
 // NewDatastore returns a Datastore.
 // ctx is a context,
 // s is an authenticated session
-// ds is the vsphere datastore
-// rootdir is the top level directory to root all data.  If root does not exist,
-// it will be created.  If it already exists, NOOP. This cannot be empty.
-func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, rootdir string) (*Helper, error) {
+// dspath is the vsphere datastore and path top level directory to root all data.  If the path does not exist,
+// it will be created.  If it already exists, NOOP.
+func NewHelper(ctx context.Context, s *session.Session, dspath *object.DatastorePath) (*Helper, error) {
+	ds, err := s.Finder.DatastoreList(ctx, dspath.Datastore)
+	if err != nil {
+		return nil, fmt.Errorf("Host returned error when trying to locate provided datastore %s: %s", dspath.String(), err.Error())
+	}
+
+	if len(ds) != 1 {
+		return nil, fmt.Errorf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(ds), dspath.Datastore)
+	}
 
 	d := &Helper{
-		ds: ds,
+		ds: ds[0],
 		s:  s,
 		fm: object.NewFileManager(s.Vim25()),
 	}
 
-	if path.IsAbs(rootdir) {
-		rootdir = rootdir[1:]
-	}
-
-	if err := d.mkRootDir(ctx, rootdir); err != nil {
-		log.Infof("error creating root directory %s: %s", rootdir, err)
+	if err := d.mkRootDir(ctx, dspath); err != nil {
+		log.Infof("error creating root directory %s: %s", dspath.String(), err)
 		return nil, err
 	}
 
@@ -263,25 +265,25 @@ func (d *Helper) IsVSAN(ctx context.Context) bool {
 }
 
 // This creates the root directory in the datastore and sets the rooturl and
-// rootdir in the datastore struct so we can reuse it for other routines.  This
+// rootdir in the Helper struct so we can reuse it for other routines.  This
 // handles vsan + vc, vsan + esx, and esx.  The URI conventions are not the
 // same for each and this tries to create the directory and stash the relevant
 // result so the URI doesn't need to be recomputed for every datastore
 // operation.
-func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
-	if rootdir == "" {
+func (d *Helper) mkRootDir(ctx context.Context, root *object.DatastorePath) error {
+	if root.Path == "" {
 		return fmt.Errorf("root directory is empty")
 	}
 
-	if path.IsAbs(rootdir) {
-		return fmt.Errorf("root directory (%s) must not be an absolute path", rootdir)
+	if path.IsAbs(root.Path) {
+		return fmt.Errorf("root directory (%s) must not be an absolute path", root.Path)
 	}
 
 	// Handle vsan
 	// Vsan will complain if the root dir exists.  Just call it directly and
 	// swallow the error if it's already there.
 	if d.IsVSAN(ctx) {
-		comps := strings.Split(rootdir, "/")
+		comps := strings.Split(root.Path, "/")
 
 		nm := object.NewDatastoreNamespaceManager(d.s.Vim25())
 
@@ -306,22 +308,20 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 			err = nil
 		}
 
-		rootdir = path.Join(path.Base(uuid), path.Join(comps[1:]...))
+		root.Path = path.Join(path.Base(uuid), path.Join(comps[1:]...))
 	}
-
-	rooturl := d.ds.Path(rootdir)
 
 	// create the rest of the root dir in case of vSAN, otherwise
 	// create the full path
-	if _, err := mkdir(ctx, d.s, d.fm, true, rooturl); err != nil {
+	if _, err := mkdir(ctx, d.s, d.fm, true, root.Path); err != nil {
 		if !os.IsExist(err) {
 			return err
 		}
 
-		log.Infof("datastore root %s already exists", rooturl)
+		log.Infof("datastore root %s already exists", root.String())
 	}
 
-	d.RootURL.FromString(rooturl)
+	d.RootURL = *root
 	return nil
 }
 
@@ -332,37 +332,6 @@ func DatastorePathFromString(dsp string) (*object.DatastorePath, error) {
 	}
 
 	return &p, nil
-}
-
-// Parse the datastore format ([datastore1] /path/to/thing) to groups.
-var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)-_\.\s]+)\]`)
-var pathFormat = regexp.MustCompile(`\s([\/\w-_\.]*$)`)
-
-// Converts `[datastore] /path` to ds:// URL
-func ToURL(ds string) (*url.URL, error) {
-	u := new(url.URL)
-	var matches []string
-	if matches = datastoreFormat.FindStringSubmatch(ds); len(matches) != 2 {
-		return nil, fmt.Errorf("Ambiguous datastore hostname format encountered from input: %s.", ds)
-	}
-	u.Host = matches[1]
-	if matches = pathFormat.FindStringSubmatch(ds); len(matches) != 2 {
-		return nil, fmt.Errorf("Ambiguous datastore path format encountered from input: %s.", ds)
-	}
-
-	u.Path = path.Clean(matches[1])
-	u.Scheme = "ds"
-
-	return u, nil
-}
-
-// Converts ds:// URL for datastores to datastore format ([datastore1] /path/to/thing)
-func URLtoDatastore(u *url.URL) (string, error) {
-	scheme := "ds"
-	if u.Scheme != scheme {
-		return "", fmt.Errorf("url (%s) is not a datastore", u.String())
-	}
-	return fmt.Sprintf("[%s] %s", u.Host, u.Path), nil
 }
 
 // TestName builds a unique datastore name

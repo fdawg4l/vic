@@ -25,6 +25,7 @@ import (
 	"context"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/govmomi/object"
 )
 
 // test if we can get a Datastore via the rooturl
@@ -81,7 +82,7 @@ func TestDatastoreRestart(t *testing.T) {
 
 	// Create a nested dir in the root and use that as the datastore
 	nestedRoot := path.Join(ds.RootURL.Path, "foo")
-	ds, err := NewHelper(ctx, ds.s, ds.s.Datastore, nestedRoot)
+	ds, err := NewHelper(ctx, ds.s, &object.DatastorePath{ds.s.Datastore.Name(), nestedRoot})
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -99,7 +100,7 @@ func TestDatastoreRestart(t *testing.T) {
 	}
 
 	// create a new datastore object with the same path as the nested one
-	ds, err = NewHelper(ctx, ds.s, ds.s.Datastore, nestedRoot)
+	ds, err = NewHelper(ctx, ds.s, &object.DatastorePath{ds.s.Datastore.Name(), nestedRoot})
 	if !assert.NoError(t, err) {
 		return
 	}

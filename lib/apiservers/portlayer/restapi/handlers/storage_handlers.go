@@ -62,7 +62,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	imageStoreURL := spl.Config.ImageStores[0]
 	// TODO: support multiple image stores. Right now we only support the first one
 	if len(spl.Config.ImageStores) > 1 {
-		log.Warningf("Multiple image stores found. Multiple image stores are not yet supported. Using [%s] %s", imageStoreURL.Host, imageStoreURL.Path)
+		log.Warningf("Multiple image stores found. Multiple image stores are not yet supported. Using %s", imageStoreURL.String())
 	}
 
 	ds, err := vsphere.NewImageStore(op, handlerCtx.Session, &imageStoreURL)

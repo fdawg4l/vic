@@ -22,6 +22,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
@@ -62,7 +63,11 @@ func DSsetup(t *testing.T) (context.Context, *Helper, func()) {
 	ctx := context.Background()
 	sess := Session(ctx, t)
 
-	ds, err := NewHelper(ctx, sess, sess.Datastore, TestName("dstests"))
+	ds, err := NewHelper(ctx, sess,
+		&object.DatastorePath{
+			Datastore: sess.Datastore.Name(),
+			Path:      TestName("dstests"),
+		})
 	if !assert.NoError(t, err) {
 		return ctx, nil, nil
 	}
