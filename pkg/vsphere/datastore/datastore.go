@@ -335,9 +335,41 @@ func DatastorePathFromString(dsp string) (*object.DatastorePath, error) {
 	return &p, nil
 }
 
-// DatastorePathFromURLString returns a DatastorePath from a url formatted string.
+// DatastorePathFromURLString returns a DatastorePath from a url formatted
+// string in the form ds://datastore/path/to/dir or datastore/path/to/dir.
 func DatastorePathFromURLString(url string) (*object.DatastorePath, error) {
-	return nil, nil
+	if len(url) == 0 {
+		return nil, fmt.Errorf("%s not a datastore url", url)
+	}
+
+	s := strings.TrimSpace(url)
+	s = strings.TrimPrefix(s, "ds://")
+
+	if len(s) == 0 {
+		return nil, fmt.Errorf("%s not a datastore url", url)
+	}
+
+	elems := strings.SplitN(s, "/", 2)
+	ds := elems[0]
+
+	// if elems has more than one element, then the 2nd elem is the path
+	var pth string
+	if len(elems) > 1 {
+		pth = elems[1]
+	}
+
+	return &object.DatastorePath{
+		Datastore: ds,
+		Path:      pth,
+	}, nil
+}
+
+func DatastorePathToURL(dspath *object.DatastorePath) *url.URL {
+	return &url.URL{
+		Scheme: "ds://",
+		Host:   dspath.Datastore,
+		Path:   dspath.Path,
+	}
 }
 
 // TestName builds a unique datastore name

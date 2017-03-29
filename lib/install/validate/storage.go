@@ -17,7 +17,6 @@ package validate
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"context"
 
@@ -66,74 +65,61 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	}
 }
 
-func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
+func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*object.DatastorePath, *object.Datastore, error) {
 	defer trace.End(trace.Begin(path))
 
-	dsURL, err := url.Parse(path)
-	if err != nil {
-		return nil, nil, errors.Errorf("error parsing datastore path: %s", err)
-	}
+	var (
+		dsURL  *object.DatastorePath
+		dstore *object.Datastore
+		err    error
+	)
 
-	// url scheme does not contain ://, so remove it to make url work
-	if dsURL.Scheme != "" && dsURL.Scheme != "ds" {
-		return nil, nil, errors.Errorf("bad scheme %q provided for datastore", dsURL.Scheme)
-	}
-
-	dsURL.Scheme = "ds"
-
-	// if a datastore name (e.g. "datastore1") is specified with no decoration then this
-	// is interpreted as the Path
-	if dsURL.Host == "" && dsURL.Path != "" {
-		pathElements := strings.SplitN(path, "/", 2)
-		dsURL.Host = pathElements[0]
-		if len(pathElements) > 1 {
-			dsURL.Path = pathElements[1]
-		} else {
-			dsURL.Path = ""
+	if len(path) {
+		dsURL, err = datastore.DatastorePathFromURLString(path)
+		if err != nil {
+			return nil, nil, errors.Errorf("error parsing datastore path: %s", err)
 		}
-	}
 
-	if dsURL.Host == "" {
+		stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Datastore)
+		if err != nil {
+			log.Debugf("no such datastore %#v", dsURL)
+			v.suggestDatastore(path, label, flag)
+			// TODO: error message about no such match and how to get a datastore list
+			// we return err directly here so we can check the type
+			return nil, nil, err
+		}
+
+		if len(stores) > 1 {
+			// TODO: error about required disabmiguation and list entries in stores
+			v.suggestDatastore(path, label, flag)
+			return nil, nil, errors.New("ambiguous datastore " + dsURL.Host)
+		}
+
+		dstore = stores[0]
+
+	} else {
+
 		// see if we can find a default datastore
-		store, err := v.Session.Finder.DatastoreOrDefault(ctx, "*")
+		dstore, err = v.Session.Finder.DatastoreOrDefault(ctx, "*")
 		if err != nil {
 			v.suggestDatastore("*", label, flag)
 			return nil, nil, errors.New("datastore empty")
 		}
 
-		dsURL.Host = store.Name()
-		log.Infof("Using default datastore: %s", dsURL.Host)
-	}
-
-	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
-	if err != nil {
-		log.Debugf("no such datastore %#v", dsURL)
-		v.suggestDatastore(path, label, flag)
-		// TODO: error message about no such match and how to get a datastore list
-		// we return err directly here so we can check the type
-		return nil, nil, err
-	}
-	if len(stores) > 1 {
-		// TODO: error about required disabmiguation and list entries in stores
-		v.suggestDatastore(path, label, flag)
-		return nil, nil, errors.New("ambiguous datastore " + dsURL.Host)
+		dsURL = &object.DatastorePath{dstore.Name(), ""}
+		log.Infof("Using default datastore: " + dsURL.String())
 	}
 
 	// temporary until session is extracted
 	// FIXME: commented out until components can consume moid
 	// dsURL.Host = stores[0].Reference().Value
 
-	// make sure the vsphere ds format fits the right format
-	if _, err := datastore.ToURL(fmt.Sprintf("[%s] %s", dsURL.Host, dsURL.Path)); err != nil {
-		return nil, nil, err
-	}
-
-	return dsURL, stores[0], nil
+	return dsURL, dstore, nil
 }
 
-func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
+func (v *Validator) SetDatastore(ds *object.Datastore, path *object.DatastorePath) {
 	v.Session.Datastore = ds
-	v.Session.DatastorePath = path.Host
+	v.Session.DatastorePath = path
 }
 
 // suggestDatastore suggests all datastores present on target in datastore:label format if applicable

@@ -161,12 +161,30 @@ func TestDatastoreMkdirAndLs(t *testing.T) {
 	}
 }
 
-func TestDatastoreURLtoDatastorePath(t *testing.T) {
-	in := []struct {
-		input  string
-		output *object.DatastorePath
-	}{{"ds://datastore/path", &object.DatastorePath{"datastore", "path"}}}
+func TestDatastoreURLStringtoDatastorePath(t *testing.T) {
+	inputs := []struct {
+		input    string
+		expected *object.DatastorePath
+	}{
+		{"ds://datastore/path", &object.DatastorePath{"datastore", "path"}},
+		{"datastore/path", &object.DatastorePath{"datastore", "path"}},
+		{"datastore 1/path/to/dir", &object.DatastorePath{"datastore 1", "path/to/dir"}},
+		{"datastore (1)/path/to/dir", &object.DatastorePath{"datastore (1)", "path/to/dir"}},
+		{"değışik 0 0/değişmek", &object.DatastorePath{"değışik 0 0", "değişmek"}},
+		{"poop", &object.DatastorePath{"poop", ""}},
+		{"poop/", &object.DatastorePath{"poop", ""}},
+	}
 
+	for _, input := range inputs {
+		out, err := DatastorePathFromURLString(input.input)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		if !assert.Equal(t, input.expected, out) {
+			return
+		}
+	}
 }
 
 // From https://siongui.github.io/2015/04/13/go-generate-random-string/
